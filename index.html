@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>متجر الأصدقاء - مباشر</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        :root {
+            --primary-color: #ffc107; --secondary-color: #c82333; --dark-color: #212529; --light-color: #f8f9fa;
+            --success-color: #28a745; --grey-color: #495057; --font-family: 'Tajawal', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { overflow-x: hidden; }
+        body {
+            font-family: var(--font-family); background-color: var(--dark-color); color: var(--light-color);
+            background: linear-gradient(rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.88)), url('https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=2070&auto=format&fit=crop') center center/cover no-repeat fixed;
+        }
+        .container { max-width: 1200px; margin: auto; padding: 0 15px; }
+        .hidden { display: none !important; }
+        .time-date-container { text-align: center; color: #ccc; padding: 10px 0; font-size: 1rem; background-color: rgba(0,0,0,0.2); }
+        #clock, #date { display: inline-block; margin: 0 10px; }
+        .marquee { background-color: var(--secondary-color); color: white; padding: 10px; overflow: hidden; white-space: nowrap; }
+        .marquee-content { display: inline-block; padding-left: 100%; animation: marquee 45s linear infinite; }
+        #map { height: 280px; border-radius: 10px; border: 2px solid var(--primary-color); margin-top:10px; z-index: 1; }
+        .leaflet-control-layers { border-radius: 5px; opacity: 0.8; }
+        .pinpoint-btn { width: 100%; padding: 12px; margin-top: 10px; font-size: 1rem; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        #loader { position: fixed; top:0; left: 0; width: 100%; height: 100%; background: var(--dark-color); display: flex; justify-content: center; align-items: center; text-align: center; padding: 1rem; font-size: 1.5rem; color: var(--primary-color); z-index: 9999; }
+        header { text-align: center; padding: 20px 15px; }
+        header h1 { font-size: 2.2rem; color: var(--primary-color); text-shadow: 2px 2px 4px rgba(0,0,0,0.7); }
+        .search-bar { margin: 15px auto; max-width: 600px; }
+        .search-bar input { width: 100%; padding: 12px; background-color: rgba(255,255,255,0.1); border: 1px solid var(--primary-color); border-radius: 8px; color: white; font-size: 1rem; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; }
+        .product-card { background-color: var(--dark-color); border: 1px solid var(--grey-color); border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: flex; flex-direction: column; position: relative; }
+        .product-card.unavailable { opacity: 0.6; }
+        .product-card.unavailable::after { content: 'غير متوفر'; position: absolute; top: 40%; left: 50%; transform: translateX(-50%) translateY(-50%) rotate(-15deg); background-color: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 5px; font-weight: bold; }
+        .product-image-container { position: relative; cursor: pointer; }
+        .product-image { width: 100%; height: 180px; object-fit: cover; }
+        .special-offer-tag { position: absolute; top: 10px; left: 10px; background-color: var(--secondary-color); color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; }
+        .product-info { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; text-align: center; }
+        .product-info h3 { font-size: 1.3rem; color: var(--primary-color); margin-bottom: 10px; }
+        .add-to-cart-btn { background-color: var(--primary-color); color: var(--dark-color); border: none; padding: 12px; font-size: 1rem; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: auto; }
+        h2.section-title { text-align: center; font-size: 2rem; color: var(--primary-color); margin-bottom: 20px; }
+        h2.section-title::after { content: ''; display: block; width: 60px; height: 3px; background: var(--secondary-color); margin: 8px auto 0; border-radius: 2px; }
+        .cart-section { background-color: rgba(0,0,0,0.75); padding: 20px; margin-top: 40px; border-radius: 15px; border-top: 4px solid var(--primary-color); }
+        .contact-buttons { margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--grey-color); display: flex; flex-direction: column; gap: 10px; }
+        .form-group { margin-top: 15px; }
+        .admin-panel { background-color: #1c1c1c; padding: 15px; margin-top: 20px; border-radius: 10px; border: 1px solid var(--primary-color); }
+        .admin-stats { display: flex; flex-wrap: wrap; justify-content: space-around; background-color: var(--dark-color); padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; gap: 10px; }
+        .stat-item h4 { color: var(--primary-color); font-size: 0.8rem; } .stat-item p { font-size: 1.4rem; font-weight: bold; }
+        .admin-product-controls { display: grid; grid-template-columns: 1fr; gap: 10px; align-items: center; padding: 10px; border-bottom: 1px solid var(--grey-color); }
+        .admin-controls-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .admin-controls-buttons button, .admin-controls-buttons label { padding: 8px; cursor: pointer; border-radius: 5px; border: none; font-size: 0.8rem; text-align: center; }
+        .delete-btn { background-color: var(--secondary-color); color: white; }
+        .toggle-status-btn-available { background-color: var(--success-color); color: white; }
+        .toggle-status-btn-unavailable { background-color: var(--grey-color); color: white; }
+        .duplicate-btn { background-color: #007bff; color: white; }
+        .toggle-offer-btn { background-color: #fd7e14; color: white; }
+        .edit-image-label { background-color: #17a2b8; color: white; display: inline-block; }
+        .admin-controls-buttons input[type="file"] { display: none; }
+        #image-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        #image-modal img { max-width: 90%; max-height: 80%; border-radius: 10px; border: 3px solid var(--primary-color); }
+        #image-modal-close { position: absolute; top: 20px; right: 30px; color: white; font-size: 2.5rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="loader" class="container">جاري الاتصال بالمتجر...</div>
+
+    <div id="app-content" class="hidden">
+         <div class="time-date-container"><span id="date"></span> | <span id="clock"></span></div>
+         <div class="marquee"><div class="marquee-content"></div></div>
+         <header class="container">
+             <h1>🍕 مطعم الأصدقاء 🥩</h1>
+             <div class="search-bar"><input type="text" id="search-input" placeholder="🔍 ابحث..."></div>
+         </header>
+         <main class="container">
+             <section id="featured-section" class="hidden"><h2 class="section-title">⭐ الأكثر طلباً</h2><div class="product-grid" id="featured-grid"></div></section>
+             <section id="pizza-section"><h2 class="section-title">البيتزا</h2><div class="product-grid" id="pizza-grid"></div></section>
+             <section id="grills-section" style="margin-top: 40px;"><h2 class="section-title">المشاوي</h2><div class="product-grid" id="grills-grid"></div></section>
+             <section id="drinks-section" style="margin-top: 40px;"><h2 class="section-title">المشروبات</h2><div class="product-grid" id="drinks-grid"></div></section>
+             <section id="others-section" style="margin-top: 40px;"><h2 class="section-title">حلويات</h2><div class="product-grid" id="others-grid"></div></section>
+             <p id="no-results-msg" class="hidden" style="text-align:center; padding: 20px;">لا توجد نتائج.</p>
+         </main>
+         <section class="cart-section container">
+             <h2 class="section-title">🛒 سلة المشتريات</h2><ul id="cart-items" style="list-style: none; padding: 0;"></ul><p id="cart-empty-msg">سلتك فارغة.</p>
+             <div id="total-price-container" class="hidden" style="text-align: left; margin-top: 15px;"><strong>الإجمالي: <span id="total-price">0.00 د.ج</span></strong></div>
+             <div class="checkout-form" id="checkout-container" style="display: none;">
+                 <div class="form-group"><label for="firstName">الاسم:</label><input type="text" id="firstName" required></div>
+                 <div class="form-group"><label for="lastName">اللقب:</label><input type="text" id="lastName" required></div>
+                 <div id="map-container"><label>حدد موقع التوصيل:</label><div id="map"></div><button type="button" class="pinpoint-btn" id="pinpoint-location-btn">📍 حدد موقعي الحالي</button></div>
+                 <div class="contact-buttons"><button id="whatsapp-btn" class="contact-btn whatsapp-btn">أرسل عبر واتساب</button><a href="https://m.me/hsam.trshwn" target="_blank" class="contact-btn messenger-btn">تواصل عبر مسنجر</a></div>
+             </div>
+         </section>
+         <footer><div class="container"><p>&copy; 2025 جميع الحقوق محفوظة</p><a id="admin-login-btn">دخول المدير</a></div></footer>
+    </div>
+    <section id="admin-panel-section" class="hidden"><div class="container"><div class="admin-panel"><h2 class="section-title">لوحة التحكم</h2><div class="admin-stats" id="admin-stats"></div><div id="admin-controls"></div><form id="add-product-form" style="border-top: 2px solid var(--primary-color); margin-top: 20px; padding-top: 20px;"><h3 style="margin-bottom: 15px;">إضافة منتج</h3><div class="form-group"><input type="text" id="new-product-name" placeholder="الاسم" required></div><div class="form-group"><input type="number" id="new-product-price" placeholder="السعر" required></div><div class="form-group"><select id="new-product-category" required style="width: 100%; padding: 10px; background: #333; color: white;"><option value="pizza">بيتزا</option><option value="grills">مشاوي</option><option value="drinks">مشروبات</option><option value="others">حلويات</option></select></div><div class="form-group"><input type="text" id="new-product-image" placeholder="رابط الصورة" required></div><button type="submit" class="add-to-cart-btn" style="width:100%;">إضافة المنتج</button></form></div></div></section>
+    <div id="login-modal" class="login-modal hidden"><div class="login-content"><span class="close-modal-btn">&times;</span><h3>دخول المدير</h3><form id="login-form"><div class="form-group"><input type="text" id="username" placeholder="اسم المستخدم" required></div><div class="form-group"><input type="password" id="password" placeholder="كلمة السر" required></div><p id="login-error-msg" style="color: var(--secondary-color); margin-top: 10px; height: 20px;"></p><button type="submit">دخول</button></form></div></div>
+    <div id="image-modal" class="hidden"><span id="image-modal-close">&times;</span><img id="image-modal-src" src="" alt="صورة مكبرة"></div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, addDoc, deleteDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+        // ===================================================================
+        // الخطوة 1: الصق مفتاح الاتصال الخاص بك هنا
+        // ===================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyB7SS6R4sG--NUIkaGiEQd9VaDTh6yiQL8",
+            authDomain: "yallapizza-1e7a6.firebaseapp.com",
+            projectId: "yallapizza-1e7a6",
+            storageBucket: "yallapizza-1e7a6.appspot.com",
+            messagingSenderId: "200622926370",
+            appId: "1:200622926370:web:c8c344af5ccbb14e2a387b"
+        };
+        // ===================================================================
+
+        const App = {
+            state: { allProducts: [], cart: [], map: null, marker: null, userLocation: null },
+            services: { db: null, auth: null, productsCollectionRef: null },
+            elements: {},
+
+            init() {
+                document.addEventListener('DOMContentLoaded', () => {
+                    this.cacheElements();
+                    this.utils.updateTime(); 
+                    setInterval(this.utils.updateTime, 1000);
+                    
+                    const appId = "pizza-shop-azouze-shared";
+                    
+                    try {
+                        const app = initializeApp(firebaseConfig);
+                        this.services.db = getFirestore(app);
+                        this.services.auth = getAuth(app);
+                        const productsCollectionPath = `/shared_data/${appId}/products`;
+                        this.services.productsCollectionRef = collection(this.services.db, productsCollectionPath);
+                        
+                        this.events.setup();
+                        this.auth.handleAuthState();
+                    } catch (e) {
+                        console.error("Initialization failed:", e);
+                        this.elements.loader.textContent = `فشل تهيئة التطبيق: ${e.message}`;
+                    }
+                });
+            },
+            
+            cacheElements() {
+                this.elements.loader = document.getElementById('loader');
+                this.elements.appContent = document.getElementById('app-content');
+                this.elements.grids = { pizza: document.getElementById('pizza-grid'), grills: document.getElementById('grills-grid'), drinks: document.getElementById('drinks-grid'), others: document.getElementById('others-grid'), featured: document.getElementById('featured-grid') };
+            },
+
+            render: {
+                all() { this.products(); this.adminPanel(); this.cart(); App.utils.populateMarquee(); },
+                products() {
+                    const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+                    const filteredProducts = App.state.allProducts.filter(p => p.name.toLowerCase().includes(searchTerm));
+                    Object.values(App.elements.grids).forEach(g => { if(g) g.innerHTML = ''; });
+                    let count = 0;
+                    const featuredSection = document.getElementById('featured-section');
+                    if (featuredSection) featuredSection.classList.add('hidden');
+                    filteredProducts.forEach(p => {
+                        const html = `<div class="product-card ${!p.isAvailable ? 'unavailable' : ''}" data-id="${p.id}"><div class="product-image-container" data-img-src="${p.image}">${p.isOffer ? '<div class="special-offer-tag">عرض خاص</div>' : ''}<img src="${p.image}" alt="${p.name}" class="product-image" loading="lazy"></div><div class="product-info"><h3>${p.name}</h3><p class="product-price">${p.price.toFixed(2)} د.ج</p><button class="add-to-cart-btn" data-id="${p.id}" ${!p.isAvailable ? 'disabled' : ''}>أضف للسلة</button></div></div>`;
+                        if (App.elements.grids[p.category]) { App.elements.grids[p.category].innerHTML += html; count++; }
+                        if (p.isOffer && App.elements.grids.featured) { App.elements.grids.featured.innerHTML += html; featuredSection.classList.remove('hidden'); }
+                    });
+                    document.getElementById('no-results-msg').classList.toggle('hidden', count === 0);
+                },
+                cart() {
+                    const list = document.getElementById('cart-items'); if(!list) return;
+                    list.innerHTML = ''; let total = 0;
+                    const checkoutContainer = document.getElementById('checkout-container'), cartEmptyMsg = document.getElementById('cart-empty-msg'), totalPriceContainer = document.getElementById('total-price-container');
+                    if (App.state.cart.length === 0) { cartEmptyMsg.classList.remove('hidden'); checkoutContainer.style.display = 'none'; totalPriceContainer.classList.add('hidden'); } 
+                    else {
+                        cartEmptyMsg.classList.add('hidden'); checkoutContainer.style.display = 'block'; totalPriceContainer.classList.remove('hidden');
+                        if (!App.state.map) App.map.init();
+                        App.state.cart.forEach(item => { const li = document.createElement('li'); li.innerHTML = `<span>${item.name} (x${item.quantity})</span><span>${(item.price * item.quantity).toFixed(2)} د.ج</span><button class="remove-item-btn" data-id="${item.id}">X</button>`; list.appendChild(li); total += item.price * item.quantity; });
+                    }
+                    document.getElementById('total-price').textContent = total.toFixed(2);
+                },
+                adminPanel() {
+                    const stats = document.getElementById('admin-stats'), controls = document.getElementById('admin-controls'); if (!stats || !controls) return;
+                    stats.innerHTML = `<div class="stat-item"><h4>الإجمالي</h4><p>${App.state.allProducts.length}</p></div>` + ['pizza', 'grills', 'drinks', 'others'].map(cat => `<div class="stat-item"><h4>${cat.charAt(0).toUpperCase() + cat.slice(1)}</h4><p>${App.state.allProducts.filter(p=>p.category===cat).length}</p></div>`).join('');
+                    controls.innerHTML = '<h3>التحكم بالمنتجات</h3>';
+                    App.state.allProducts.sort((a,b) => a.name.localeCompare(b.name)).forEach(p => { controls.innerHTML += `<div class="admin-product-controls" style="opacity:${p.isAvailable ? 1 : 0.7}"><span>${p.name}</span><div class="admin-controls-buttons"><label for="edit-image-${p.id}" class="edit-image-label">صورة</label><input type="file" id="edit-image-${p.id}" class="edit-image-input" data-id="${p.id}" accept="image/*"><button class="toggle-status-btn ${p.isAvailable ? 'toggle-status-btn-available' : 'toggle-status-btn-unavailable'}" data-id="${p.id}">${p.isAvailable ? 'متوفر' : 'نفذ'}</button><button class="toggle-offer-btn" data-id="${p.id}" style="background-color:${p.isOffer ? 'var(--success-color)' : '#fd7e14'}">${p.isOffer ? 'عرض عادي' : 'عرض خاص'}</button><button class="duplicate-btn" data-id="${p.id}">نسخ</button><button class="delete-btn" data-id="${p.id}">حذف</button></div></div>`; });
+                }
+            },
+            
+            utils: {
+                updateTime() {
+                    const now = new Date();
+                    const clockEl = document.getElementById('clock');
+                    const dateEl = document.getElementById('date');
+                    if(clockEl) clockEl.textContent = now.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' });
+                    if(dateEl) dateEl.textContent = now.toLocaleDateString('ar-DZ', { weekday: 'long', day: 'numeric', month: 'long' });
+                },
+                populateMarquee() {
+                    const marqueeContent = document.querySelector('.marquee-content');
+                    if (marqueeContent) marqueeContent.innerHTML = App.state.allProducts.map(p => `<span>${p.isOffer ? '⭐' : '🍕'} ${p.name}</span>`).join('');
+                },
+            },
+
+            map: {
+                init() {
+                    if (document.getElementById('map') && !App.state.map) {
+                        const defaultCoords = [27.8736, -0.2933];
+                        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
+                        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' });
+                        App.state.map = L.map('map', { layers: [osmLayer] }).setView(defaultCoords, 13);
+                        L.control.layers({ "خريطة عادية": osmLayer, "صور فضائية": satelliteLayer }).addTo(App.state.map);
+                        App.state.marker = L.marker(defaultCoords, { draggable: true }).addTo(App.state.map);
+                        App.state.userLocation = { lat: defaultCoords[0], lng: defaultCoords[1] };
+                        App.state.marker.on('dragend', (e) => App.state.userLocation = e.target.getLatLng());
+                    }
+                }
+            },
+            
+            data: {
+                listenForChanges() {
+                    onSnapshot(App.services.productsCollectionRef, (snapshot) => {
+                        if (snapshot.empty && App.elements.loader.textContent.includes("الاتصال")) {
+                            this.initializeDefault();
+                        }
+                        App.state.allProducts = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+                        App.render.all();
+                        App.elements.loader.classList.add('hidden');
+                        App.elements.appContent.classList.remove('hidden');
+                    }, (error) => {
+                        console.error("Firestore listener error:", error);
+                        App.elements.loader.textContent = "خطأ في الاتصال بالمتجر.";
+                    });
+                },
+                async initializeDefault() {
+                    const defaultProducts = [
+                         { name: 'بيتزا مارغريتا', price: 800, image: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?q=80&w=2069&auto=format&fit=crop', category: 'pizza', isAvailable: true, isOffer: true },
+                         { name: 'طبق مشاوي مشكل', price: 1800, image: 'https://images.unsplash.com/photo-1628345121123-9383445837e2?q=80&w=1974&auto=format&fit=crop', category: 'grills', isAvailable: true, isOffer: true },
+                         { name: 'عصير برتقال طازج', price: 250, image: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?q=80&w=1887&auto=format&fit=crop', category: 'drinks', isAvailable: true, isOffer: false },
+                    ];
+                    for (const product of defaultProducts) {
+                        try { 
+                            await addDoc(App.services.productsCollectionRef, product);
+                        } catch(e) { console.error("Error adding default product:", e); }
+                    }
+                }
+            },
+            
+            auth: {
+                handleAuthState() {
+                    onAuthStateChanged(App.services.auth, user => {
+                        if (user) {
+                            App.data.listenForChanges();
+                        } else {
+                            signInAnonymously(App.services.auth).catch(err => {
+                                console.error("Anonymous Sign in failed", err);
+                                App.elements.loader.textContent = "فشل الاتصال. الرجاء تفعيل الدخول المجهول في إعدادات Firebase.";
+                            });
+                        }
+                    });
+                }
+            },
+
+            events: {
+                setup() {
+                    document.body.addEventListener('click', this.handleBodyClick);
+                    document.getElementById('login-form').addEventListener('submit', this.handleLogin);
+                    document.getElementById('add-product-form').addEventListener('submit', this.handleAddProduct);
+                    document.getElementById('admin-panel-section').addEventListener('change', this.handleAdminImageChange);
+                    document.getElementById('search-input').addEventListener('input', () => App.render.products());
+                },
+                async handleBodyClick(e) {
+                    const target = e.target;
+                    const id = target.dataset.id;
+                    if (!target) return;
+                    if (target.classList.contains('add-to-cart-btn')) {
+                        const product = App.state.allProducts.find(p => p.id === id);
+                        if (product && product.isAvailable) { const item = App.state.cart.find(i => i.id === id); if (item) item.quantity++; else App.state.cart.push({ ...product, quantity: 1 }); App.render.cart(); }
+                    } else if (target.classList.contains('remove-item-btn')) {
+                        App.state.cart = App.state.cart.filter(item => item.id !== id); App.render.cart();
+                    } else if (target.closest('.product-image-container')) {
+                        document.getElementById('image-modal-src').src = target.closest('.product-image-container').dataset.imgSrc; document.getElementById('image-modal').classList.remove('hidden');
+                    } else if (target.id === 'image-modal-close' || target.id === 'image-modal') {
+                        document.getElementById('image-modal').classList.add('hidden');
+                    } else if (target.id === 'admin-login-btn') {
+                        document.getElementById('login-modal').classList.remove('hidden');
+                    } else if (target.classList.contains('close-modal-btn')) {
+                        document.getElementById('login-modal').classList.add('hidden');
+                    } else if (target.id === 'pinpoint-location-btn') {
+                        if (navigator.geolocation) { navigator.geolocation.getCurrentPosition(pos => { const { latitude, longitude } = pos.coords; App.state.userLocation = { lat: latitude, lng: longitude }; if(App.state.map){App.state.map.setView([latitude, longitude], 16); App.state.marker.setLatLng([latitude, longitude]);}}, () => alert('لا يمكن تحديد الموقع.'), { enableHighAccuracy: true }); }
+                    } else if (target.id === 'whatsapp-btn') {
+                        const fName = document.getElementById('firstName').value, lName = document.getElementById('lastName').value; if (!fName || !lName) { alert('الرجاء إدخال الاسم واللقب.'); return; }
+                        const ts = new Date().toLocaleString('ar-DZ', { dateStyle: 'full', timeStyle: 'short' }); let msg = `*طلب جديد* 🛎️\n*التاريخ:* ${ts}\n*الزبون:* ${fName} ${lName}\n\n*الطلبات:*\n`; App.state.cart.forEach(i => msg += `- ${i.name} (x${i.quantity}) = ${(i.price * i.quantity).toFixed(2)} د.ج\n`); msg += `\n*الإجمالي: ${document.getElementById('total-price').textContent} د.ج*`; if (App.state.userLocation) { msg += `\n\n*الموقع:* https://www.google.com/maps?q=${App.state.userLocation.lat},${App.state.userLocation.lng}`; }
+                        window.open(`https://wa.me/213775210534?text=${encodeURIComponent(msg)}`, '_blank');
+                    } else if (target.closest('#admin-controls')) {
+                        if (!id) return;
+                        const productsCollectionPath = `/shared_data/pizza-shop-azouze-shared/products`;
+                        const productRef = doc(App.services.db, productsCollectionPath, id);
+                        if (target.classList.contains('delete-btn')) { if (confirm('هل أنت متأكد؟')) await deleteDoc(productRef); } 
+                        else if (target.classList.contains('toggle-status-btn')) { const p = App.state.allProducts.find(p => p.id === id); if(p) await updateDoc(productRef, { isAvailable: !p.isAvailable }); }
+                        else if (target.classList.contains('toggle-offer-btn')) { const p = App.state.allProducts.find(p => p.id === id); if(p) await updateDoc(productRef, { isOffer: !p.isOffer }); }
+                        else if (target.classList.contains('duplicate-btn')) { const p = App.state.allProducts.find(p => p.id === id); if (p) { const { id: oldId, ...productData } = p; await addDoc(App.services.productsCollectionRef, {...productData, name: `${p.name} (نسخة)`}); } }
+                    }
+                },
+                handleLogin(e) { e.preventDefault(); if (document.getElementById('username').value.trim() === 'azouze' && document.getElementById('password').value.trim() === '19891989') { document.getElementById('login-modal').classList.add('hidden'); document.getElementById('admin-panel-section').classList.remove('hidden'); document.querySelector('footer').classList.add('hidden'); } else { document.getElementById('login-error-msg').textContent = 'معلومات خاطئة.'; } },
+                async handleAddProduct(e) { e.preventDefault(); const newProduct = { name: document.getElementById('new-product-name').value, price: parseFloat(document.getElementById('new-product-price').value), category: document.getElementById('new-product-category').value, image: document.getElementById('new-product-image').value, isAvailable: true, isOffer: false }; if (newProduct.name && newProduct.price > 0) { await addDoc(App.services.productsCollectionRef, newProduct); e.target.reset(); } },
+                handleAdminImageChange(e) { if (e.target.classList.contains('edit-image-input')) { const id = e.target.dataset.id; const file = e.target.files[0]; if (!file || !id) return; const product = App.state.allProducts.find(p => p.id === id); if (product) { const reader = new FileReader(); reader.onload = (event) => { const productRef = doc(App.services.db, `/shared_data/pizza-shop-azouze-shared/products`, id); updateDoc(productRef, { image: event.target.result }); }; reader.readAsDataURL(file); } } }
+            },
+        };
+
+        App.init();
+
+    </script>
+</body>
+</html>
